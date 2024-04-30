@@ -1,4 +1,49 @@
+import os
+import sys
+
 table_delim = "|"
+file_dest = None
+
+# arg 1: file input
+try:
+    sys.argv[1]
+    file_input = sys.argv[1]
+    if not os.path.isfile(file_input):
+        raise SystemExit(
+            "File Error: File not found"
+            )
+
+    if "/" in file_input:
+        file_name = file_input.split("/")[-1]
+        print(file_name)
+    else:
+        file_name = file_input
+
+except Exception as e:
+    if str(e) == "list index out of range":
+        raise SystemExit(
+            "Usage: mdtabsort <filename> <column> [dest](defaults to .)"
+            )
+
+# arg 2: column input
+try:
+    sys.argv[2]
+    field_to_sort = sys.argv[2].strip()
+except Exception as e:
+    if str(e) == "list index out of range":
+        raise SystemExit(
+            "Error: No column entered"
+            )
+
+# arg 3 destination input (optional)
+try:
+    sys.argv[3]
+    if sys.argv[3]:
+        file_dest = sys.argv[3]
+    # Todo: specify OS path
+except Exception:
+    UserWarning("No destination specified. Saving to current working directory")
+    pass
 
 
 def open_markdown(file_name: str) -> list:
@@ -90,16 +135,26 @@ def build_lines(top_list) -> list:
     return list_of_lines
 
 
-def write_file(file_name, content, lines_to_write, col_lines, table_heights):
+def write_file(file_name,
+               content,
+               lines_to_write,
+               col_lines,
+               table_heights,
+               file_dest):
+
     writing_new_content = False
     items_written = 0
     cur_table = 0
     wrote_split_line = False
 
+    if not file_dest:
+        file_dest = f"sorted-{file_name}"
+
     # creates new file to avoid overwriting old one
-    with open(f"sorted-{file_name}", "w") as new_file:
+    with open(file_dest, "w") as new_file:
         for line_index, cur_line in enumerate(content):
 
+            # write last line after all tables sorted
             if cur_table == len(lines_to_write):
                 new_file.write(cur_line)
                 continue
@@ -107,18 +162,7 @@ def write_file(file_name, content, lines_to_write, col_lines, table_heights):
             if writing_new_content is True:
 
                 if items_written == 0 and wrote_split_line is False:
-                    # building the |---| table split
-                    split_line = ""
-                    for char in cur_line:
-                        if char == table_delim:
-                            split_line += char
-                            continue
-                        split_line += "-"
-                    if split_line.endswith("-"):  # sometimes extra space
-                        split_line = split_line[:-1]
-
-                    split_line += "\n"
-                    new_file.write(split_line)
+                    new_file.write(cur_line)
                     wrote_split_line = True
                     continue
 
@@ -145,20 +189,23 @@ def write_file(file_name, content, lines_to_write, col_lines, table_heights):
 
 
 if __name__ == "__main__":
-    file_name = "alb-ec2-readme.md"
-    content = open_markdown(file_name)
+
+    content = open_markdown(file_input)
 
     col = get_col_head(content)
 
-    field_to_sort = "Required"
+    # field_to_sort = "Required"
 
     valid_tables = []
     for obj in col:
         for col_line, col_head in obj.items():
             for field in col_head:
-                if field_to_sort == field.strip():
+                if field_to_sort.lower() == field.strip().lower():
                     valid_tables.append(obj)
                     break
+
+    if len(valid_tables) == 0:
+        raise SystemExit(f"Exiting: No columns by the name '{field_to_sort}'")
 
     lines_to_write = []
     table_heights = []
@@ -171,7 +218,7 @@ if __name__ == "__main__":
 
         # TODO: dynamically find the column marked with keyword
         for item in col:
-            if item.strip() == field_to_sort:
+            if item.strip().lower() == field_to_sort.lower():
                 col_to_sort = item
 
         sorted_table = sort_table(table, col_to_sort)
@@ -185,4 +232,11 @@ if __name__ == "__main__":
         table_heights.append(table_height)
         col_lines.append(col_line)
 
-    write_file(file_name, content, lines_to_write, col_lines, table_heights)
+    write_file(file_name,
+               content,
+               lines_to_write,
+               col_lines,
+               table_heights,
+               file_dest)
+
+    raise SystemExit(f"Successfully sorted and wrote to 'sorted-{file_name}'")

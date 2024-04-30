@@ -7,14 +7,14 @@ def open_markdown(file_name: str) -> list:
         return content
 
 
-def get_col_head(content: list) -> list | int:
+def get_col_head(content: list) -> object:
     col = []
     at_table = False
-    col_line = 0
+    col_line = 0  # line based on 0 index
 
     for line in content:
         if at_table is True and line.startswith(table_delim):
-            col_line += 1  # line based on 0 index
+            col_line += 1
             continue
         elif at_table is True and not line.startswith(table_delim):
             at_table = False
@@ -23,7 +23,7 @@ def get_col_head(content: list) -> list | int:
             head = line.lstrip(table_delim).rstrip("\n").rstrip(table_delim)
             col.append({col_line: head.split(table_delim)})
             at_table = True
-        col_line += 1  # line based on 0 index
+        col_line += 1
 
     return col
 
@@ -35,7 +35,8 @@ def map_table(col, col_line, content) -> list | int:
 
     ptr = content[head + height]
     while ptr.startswith(table_delim):
-        row = ptr.lstrip(table_delim).rstrip("\n").rstrip(table_delim).split(table_delim)
+        row = ptr.lstrip(table_delim).rstrip("\n").rstrip(table_delim)
+        row = row.split(table_delim)
 
         for col_num, col_value in enumerate(col):
             if col_num == 0:
@@ -50,15 +51,15 @@ def map_table(col, col_line, content) -> list | int:
         height += 1
         ptr = content[head + height]
 
-    table_height = height - 2
+    table_height = height - 2  # skipping |-----|
     return lines, table_height
 
 
-def sort_table(table, column):
+def sort_table(table, column) -> list:
     return sorted(table, key=lambda d: d[column])
 
 
-def merge_tables(sorted_table):
+def merge_tables(sorted_table) -> list:
     first_val = sorted_table[0][col_to_sort]
     top_list = []
     bottom_list = []
@@ -75,7 +76,7 @@ def merge_tables(sorted_table):
     return top_list
 
 
-def build_lines(top_list):
+def build_lines(top_list) -> list:
     list_of_lines = []
     for item in top_list:
 
@@ -89,63 +90,62 @@ def build_lines(top_list):
     return list_of_lines
 
 
-def write_to_file(file_name, content, lines_to_write, col_lines, table_heights):
+def write_file(file_name, content, lines_to_write, col_lines, table_heights):
     writing_new_content = False
     items_written = 0
     cur_table = 0
-    wrote_split_line = 0
+    wrote_split_line = False
 
+    # creates new file to avoid overwriting old one
     with open(f"sorted-{file_name}", "w") as new_file:
-        for index, line in enumerate(content):
+        for line_index, cur_line in enumerate(content):
 
             if cur_table == len(lines_to_write):
-                new_file.write(line)
+                new_file.write(cur_line)
                 continue
 
             if writing_new_content is True:
 
-                if items_written == 0 and wrote_split_line == 0:
+                if items_written == 0 and wrote_split_line is False:
+                    # building the |---| table split
                     split_line = ""
-                    for char in line:
+                    for char in cur_line:
                         if char == table_delim:
                             split_line += char
                             continue
                         split_line += "-"
-                    if split_line.endswith("-"):
+                    if split_line.endswith("-"):  # sometimes extra space
                         split_line = split_line[:-1]
 
                     split_line += "\n"
                     new_file.write(split_line)
-                    wrote_split_line = 1
+                    wrote_split_line = True
                     continue
 
-                if items_written == table_heights[cur_table]:
-                    writing_new_content = False
-                    new_file.write(line)
-                    # print(items_written)
+                if items_written == table_heights[cur_table]:  # go next table
+                    new_file.write(cur_line)
                     items_written = 0
                     cur_table += 1
-                    wrote_split_line = 0
+                    writing_new_content = False
+                    wrote_split_line = False
                     continue
 
                 new_file.write(lines_to_write[cur_table][items_written])
                 items_written += 1
                 continue
 
-            if index == col_lines[cur_table]:
-                # building table header split bar
-
-                new_file.write(line)
+            if line_index == col_lines[cur_table]:
+                new_file.write(cur_line)
                 writing_new_content = True
                 continue
 
             if writing_new_content is False:
-                new_file.write(line)
+                new_file.write(cur_line)
                 continue
 
 
 if __name__ == "__main__":
-    file_name = "nlb-ec2-readme.md"
+    file_name = "alb-ec2-readme.md"
     content = open_markdown(file_name)
 
     col = get_col_head(content)
@@ -168,8 +168,11 @@ if __name__ == "__main__":
         col = list(cur_table.values())[0]
 
         table, table_height = map_table(col, col_line, content)
-        # do an input here to find out which column to sort by
-        col_to_sort = col[4]  # ' Required '
+
+        # TODO: dynamically find the column marked with keyword
+        for item in col:
+            if item.strip() == field_to_sort:
+                col_to_sort = item
 
         sorted_table = sort_table(table, col_to_sort)
         # alphabetical, so "no" comes before yes
@@ -182,4 +185,4 @@ if __name__ == "__main__":
         table_heights.append(table_height)
         col_lines.append(col_line)
 
-    write_to_file(file_name, content, lines_to_write, col_lines, table_heights)
+    write_file(file_name, content, lines_to_write, col_lines, table_heights)

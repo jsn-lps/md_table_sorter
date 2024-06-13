@@ -11,7 +11,7 @@ try:
     if not os.path.isfile(file_input):
         raise SystemExit(
             "File Error: File not found"
-            )
+        )
 
     if "/" in file_input:
         file_name = file_input.split("/")[-1]
@@ -23,7 +23,7 @@ except Exception as e:
     if str(e) == "list index out of range":
         raise SystemExit(
             "Usage: mdtabsort <filename> <column> [dest](defaults to .)"
-            )
+        )
 
 # arg 2: column input
 try:
@@ -33,7 +33,7 @@ except Exception as e:
     if str(e) == "list index out of range":
         raise SystemExit(
             "Error: No column entered"
-            )
+        )
 
 # arg 3 destination input (optional)
 try:
@@ -42,7 +42,9 @@ try:
         file_dest = sys.argv[3]
     # Todo: specify OS path
 except Exception:
-    UserWarning("No destination specified. Saving to current working directory")
+    UserWarning(
+        "No destination specified. Saving to current working directory"
+    )
     pass
 
 
@@ -232,11 +234,13 @@ if __name__ == "__main__":
         table_heights.append(table_height)
         col_lines.append(col_line)
 
-    write_file(file_name,
-               content,
-               lines_to_write,
-               col_lines,
-               table_heights,
-               file_dest)
+    write_file(
+        file_name,
+        content,
+        lines_to_write,
+        col_lines,
+        table_heights,
+        file_dest
+    )
 
     raise SystemExit(f"Successfully sorted and wrote to 'sorted-{file_name}'")
